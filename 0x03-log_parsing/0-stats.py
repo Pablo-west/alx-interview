@@ -1,62 +1,42 @@
 #!/usr/bin/python3
-
 import sys
 
-
-def print_statistics(status_codes, total_file_size):
-    """
-    Prints the statistics.
-    
-    Args:
-        status_codes (dict): Dictionary containing the count of status codes.
-        total_file_size (int): Total file size.
-    """
-    print("File size: {}".format(total_file_size))
-    for key, val in sorted(status_codes.items()):
-        if val != 0:
-            print("{}: {}".format(key, val))
-
+def print_stats(total_size, status_codes):
+    """Print statistics."""
+    print("File size: {}".format(total_size))
+    for code, count in sorted(status_codes.items()):
+        if count > 0:
+            print("{}: {}".format(code, count))
 
 def main():
-    total_file_size = 0
-    counter = 0
-    status_codes = {
-        "200": 0,
-        "301": 0,
-        "400": 0,
-        "401": 0,
-        "403": 0,
-        "404": 0,
-        "405": 0,
-        "500": 0
-    }
+    total_size = 0
+    status_codes = {'200': 0, '301': 0, '400': 0, '401': 0, '403': 0, '404': 0, '405': 0, '500': 0}
+    lines_processed = 0
 
     try:
         for line in sys.stdin:
-            parsed_line = line.split()
-            parsed_line = parsed_line[::-1]  # Reverse the parsed line to get the desired fields
+            parts = line.strip().split()
+            if len(parts) < 9 or parts[-2] != 'GET' or parts[-4] != 'HTTP/1.1':
+                continue
 
-            if len(parsed_line) >= 2:
-                counter += 1
+            status_code = parts[-3]
+            if status_code not in status_codes:
+                continue
 
-                if counter <= 10:
-                    total_file_size += int(parsed_line[0])  # File size
-                    status_code = parsed_line[1]  # Status code
+            try:
+                file_size = int(parts[-5])
+            except ValueError:
+                continue
 
-                    if status_code in status_codes:
-                        status_codes[status_code] += 1
+            total_size += file_size
+            status_codes[status_code] += 1
+            lines_processed += 1
 
-                if counter == 10:
-                    print_statistics(status_codes, total_file_size)
-                    counter = 0
+            if lines_processed % 10 == 0:
+                print_stats(total_size, status_codes)
 
     except KeyboardInterrupt:
-        pass  # Handle keyboard interruption gracefully
-
-    finally:
-        print_statistics(status_codes, total_file_size)
-        sys.exit(0)
-
+        print_stats(total_size, status_codes)
 
 if __name__ == "__main__":
     main()
